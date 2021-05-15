@@ -16,13 +16,13 @@ class SACAgent(Agent):
                  actor_cfg, discount, init_temperature, alpha_lr, alpha_betas,
                  actor_lr, actor_betas, actor_update_frequency, critic_lr,
                  critic_betas, critic_tau, critic_target_update_frequency,
-                 batch_size, learnable_temperature):
+                 batch_size, learnable_temperature,name="sac"):
         super().__init__()
 
         self.action_range = action_range
         self.device = torch.device(device)
         self.discount = discount
-        self.critic_tau = critic_tau
+        self.critic_tau = critic_tau # soft update: target_net = target_net*(1-tau) + net*tau
         self.actor_update_frequency = actor_update_frequency
         self.critic_target_update_frequency = critic_target_update_frequency
         self.batch_size = batch_size
@@ -53,16 +53,18 @@ class SACAgent(Agent):
                                                     lr=alpha_lr,
                                                     betas=alpha_betas)
 
+        # set training mode
         self.train()
         self.critic_target.train()
 
     def train(self, training=True):
+        """set training mode for pytorch.nn.Module"""
         self.training = training
         self.actor.train(training)
         self.critic.train(training)
 
     @property
-    def alpha(self):
+    def alpha(self): # entropy multiplier
         return self.log_alpha.exp()
 
     def act(self, obs, sample=False):
@@ -71,7 +73,7 @@ class SACAgent(Agent):
         dist = self.actor(obs)
         action = dist.sample() if sample else dist.mean
         action = action.clamp(*self.action_range)
-        assert action.ndim == 2 and action.shape[0] == 1
+        assert action.ndim == 2 and action.shape[0] == 1 #  TODO:Check this
         return utils.to_np(action[0])
 
     def update_critic(self, obs, action, reward, next_obs, not_done, logger,

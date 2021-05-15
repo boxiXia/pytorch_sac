@@ -1,17 +1,25 @@
+# to install:
+# conda env create -f conda_env.yml
+# source activate pytorch_sac
 name: pytorch_sac
 channels:
+  - pytorch
+  - conda-forge
   - defaults
 dependencies:
-  - python=3.6
+  - python=3.8
+  - pip
+  - cudatoolkit=11.1
   - pytorch
-  - cudatoolkit=9.2
   - absl-py
   - pyparsing
+  - numpy
+  - tensorboard
+  - imageio
+  - imageio-ffmpeg
+  - termcolor
+  - hydra-core
   - pip:
-    - termcolor
+    # - git+git://github.com/facebookresearch/hydra.git
     - git+git://github.com/deepmind/dm_control.git
     - git+git://github.com/denisyarats/dmc2gym.git
-    - tb-nightly
-    - imageio
-    - imageio-ffmpeg
-    - git+git://github.com/facebookresearch/hydra@0.11_branch

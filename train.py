@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# to run: python train.py env=cheetah_run
 import numpy as np
 import torch
 import torch.nn as nn
@@ -18,32 +19,10 @@ import utils
 import dmc2gym
 import hydra
 
-
-def make_env(cfg):
-    """Helper function to create dm_control environment"""
-    if cfg.env == 'ball_in_cup_catch':
-        domain_name = 'ball_in_cup'
-        task_name = 'catch'
-    else:
-        domain_name = cfg.env.split('_')[0]
-        task_name = '_'.join(cfg.env.split('_')[1:])
-
-    env = dmc2gym.make(domain_name=domain_name,
-                       task_name=task_name,
-                       seed=cfg.seed,
-                       visualize_reward=True)
-    env.seed(cfg.seed)
-    assert env.action_space.low.min() >= -1
-    assert env.action_space.high.max() <= 1
-
-    return env
-
-
 class Workspace(object):
     def __init__(self, cfg):
         self.work_dir = os.getcwd()
         print(f'workspace: {self.work_dir}')
-
         self.cfg = cfg
 
         self.logger = Logger(self.work_dir,
@@ -55,9 +34,9 @@ class Workspace(object):
         self.device = torch.device(cfg.device)
         self.env = utils.make_env(cfg)
 
-        cfg.agent.params.obs_dim = self.env.observation_space.shape[0]
-        cfg.agent.params.action_dim = self.env.action_space.shape[0]
-        cfg.agent.params.action_range = [
+        cfg.agent.obs_dim = self.env.observation_space.shape[0]
+        cfg.agent.action_dim = self.env.action_space.shape[0]
+        cfg.agent.action_range = [
             float(self.env.action_space.low.min()),
             float(self.env.action_space.high.max())
         ]
@@ -149,7 +128,8 @@ class Workspace(object):
             self.step += 1
 
 
-@hydra.main(config_path='config/train.yaml', strict=True)
+# @hydra.main(config_path='config/train.yaml', strict=True)
+@hydra.main(config_path="config",config_name='train')
 def main(cfg):
     workspace = Workspace(cfg)
     workspace.run()
