@@ -7,7 +7,7 @@ import utils
 
 class VideoRecorder(object):
     def __init__(self, root_dir, height=256, width=256, camera_id=0, fps=30):
-        self.save_dir = utils.make_dir(root_dir, 'video') if root_dir else None
+        self.save_dir = utils.makeDir(root_dir, 'video') if root_dir else None
         self.height = height
         self.width = width
         self.camera_id = camera_id
