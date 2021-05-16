@@ -12,7 +12,7 @@ import math
 import dmc2gym
 
 
-def make_env(cfg):
+def makeEnv(cfg):
     """Helper function to create dm_control environment"""
     if cfg.env == 'ball_in_cup_catch':
         domain_name = 'ball_in_cup'
@@ -32,7 +32,8 @@ def make_env(cfg):
     return env
 
 
-class eval_mode(object):
+class evalMode(object):
+    """ context manager that sets the module in evaluation mode."""
     def __init__(self, *models):
         self.models = models
 
@@ -48,7 +49,8 @@ class eval_mode(object):
         return False
 
 
-class train_mode(object):
+class trainMode(object):
+    """ context manager that sets the module in training mode."""
     def __init__(self, *models):
         self.models = models
 
@@ -63,13 +65,18 @@ class train_mode(object):
             model.train(state)
         return False
 
+class evalMode(trainMode):
+    """ context manager that sets the module in evaluation mode."""
 
-def soft_update_params(net, target_net, tau):
+
+def softUpdateParams(net, target_net, tau):
+    """target_net = net*tau + target_net*(1-tau)"""
     for param, target_param in zip(net.parameters(), target_net.parameters()):
         target_param.data.copy_(tau * param.data +
                                 (1 - tau) * target_param.data)
 
-def set_seed_everywhere(seed):
+def setSeedEverywhere(seed):
+    """set seed on pytroch, numpy.random and python random """
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
@@ -77,7 +84,8 @@ def set_seed_everywhere(seed):
     random.seed(seed)
 
 
-def make_dir(*path_parts):
+def makeDir(*path_parts):
+    """create directory give path parts"""
     dir_path = os.path.join(*path_parts)
     try:
         os.mkdir(dir_path)
@@ -94,6 +102,7 @@ def weight_init(m):
 
 
 class MLP(nn.Module):
+    """return dense layers"""
     def __init__(self,
                  input_dim,
                  hidden_dim,
@@ -122,7 +131,7 @@ def mlp(input_dim, hidden_dim, output_dim, hidden_depth, output_mod=None):
     trunk = nn.Sequential(*mods)
     return trunk
 
-def to_np(t):
+def toNumpy(t):
     if t is None:
         return None
     elif t.nelement() == 0:

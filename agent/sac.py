@@ -74,9 +74,9 @@ class SACAgent(Agent):
         action = dist.sample() if sample else dist.mean
         action = action.clamp(*self.action_range)
         assert action.ndim == 2 and action.shape[0] == 1 #  TODO:Check this
-        return utils.to_np(action[0])
+        return utils.toNumpy(action[0])
 
-    def update_critic(self, obs, action, reward, next_obs, not_done, logger,
+    def updateCritic(self, obs, action, reward, next_obs, not_done, logger,
                       step):
         dist = self.actor(next_obs)
         next_action = dist.rsample()
@@ -100,7 +100,7 @@ class SACAgent(Agent):
 
         self.critic.log(logger, step)
 
-    def update_actor_and_alpha(self, obs, logger, step):
+    def updateActorAndAlpha(self, obs, logger, step):
         dist = self.actor(obs)
         action = dist.rsample()
         log_prob = dist.log_prob(action).sum(-1, keepdim=True)
@@ -135,12 +135,12 @@ class SACAgent(Agent):
 
         logger.log('train/batch_reward', reward.mean(), step)
 
-        self.update_critic(obs, action, reward, next_obs, not_done_no_max,
+        self.updateCritic(obs, action, reward, next_obs, not_done_no_max,
                            logger, step)
 
         if step % self.actor_update_frequency == 0:
-            self.update_actor_and_alpha(obs, logger, step)
+            self.updateActorAndAlpha(obs, logger, step)
 
         if step % self.critic_target_update_frequency == 0:
-            utils.soft_update_params(self.critic, self.critic_target,
+            utils.softUpdateParams(self.critic, self.critic_target,
                                      self.critic_tau)

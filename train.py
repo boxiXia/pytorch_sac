@@ -16,7 +16,6 @@ from logger import Logger
 from replay_buffer import ReplayBuffer
 import utils
 
-import dmc2gym
 import hydra
 
 class Workspace(object):
@@ -30,9 +29,9 @@ class Workspace(object):
                              log_frequency=cfg.log_frequency,
                              agent=cfg.agent.name)
 
-        utils.set_seed_everywhere(cfg.seed)
+        utils.setSeedEverywhere(cfg.seed)
         self.device = torch.device(cfg.device)
-        self.env = utils.make_env(cfg)
+        self.env = utils.makeEnv(cfg)
 
         cfg.agent.obs_dim = self.env.observation_space.shape[0]
         cfg.agent.action_dim = self.env.action_space.shape[0]
@@ -60,7 +59,7 @@ class Workspace(object):
             done = False
             episode_reward = 0
             while not done:
-                with utils.eval_mode(self.agent):
+                with utils.evalMode(self.agent):
                     action = self.agent.act(obs, sample=False)
                 obs, reward, done, _ = self.env.step(action)
                 self.video_recorder.record(self.env)
@@ -106,7 +105,7 @@ class Workspace(object):
             if self.step < self.cfg.num_seed_steps:
                 action = self.env.action_space.sample()
             else:
-                with utils.eval_mode(self.agent):
+                with utils.evalMode(self.agent):
                     action = self.agent.act(obs, sample=True)
 
             # run training update
