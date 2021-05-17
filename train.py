@@ -11,6 +11,7 @@ import sys
 import time
 import pickle as pkl
 
+sys.path.append(os.path.realpath(os.path.dirname(__file__)))
 from video import VideoRecorder
 from logger import Logger
 from replay_buffer import ReplayBuffer
@@ -31,7 +32,8 @@ class Workspace(object):
 
         utils.setSeedEverywhere(cfg.seed)
         self.device = torch.device(cfg.device)
-        self.env = utils.makeEnv(cfg)
+        # self.env = utils.makeEnv(cfg)
+        self.env = hydra.utils.call(cfg.env)
 
         cfg.agent.obs_dim = self.env.observation_space.shape[0]
         cfg.agent.action_dim = self.env.action_space.shape[0]
@@ -39,7 +41,7 @@ class Workspace(object):
             float(self.env.action_space.low.min()),
             float(self.env.action_space.high.max())
         ]
-        self.agent = hydra.utils.instantiate(cfg.agent)
+        self.agent = hydra.utils.instantiate(cfg.agent,_recursive_=False)
 
         self.replay_buffer = ReplayBuffer(self.env.observation_space.shape,
                                           self.env.action_space.shape,

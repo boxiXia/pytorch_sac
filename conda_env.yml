@@ -18,8 +18,9 @@ dependencies:
   - imageio
   - imageio-ffmpeg
   - termcolor
-  - hydra-core
+  # - hydra-core
   - pip:
+    - hydra-core --pre
     # - git+git://github.com/facebookresearch/hydra.git
     - git+git://github.com/deepmind/dm_control.git
     - git+git://github.com/denisyarats/dmc2gym.git

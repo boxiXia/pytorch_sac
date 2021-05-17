@@ -1,8 +1,15 @@
-# @package _group_
 defaults:
     - agent: sac
 
-env: cheetah_run
+seed: 1
+
+# env: "cheetah_run"
+env:
+    _target_: dmc2gym.make
+    domain_name: cheetah
+    task_name: run
+    seed: ${seed}
+    visualize_reward: True
 
 # this needs to be specified manually
 experiment: test_exp
@@ -24,14 +31,10 @@ log_save_tb: true
 # video recorder
 save_video: true
 
-
-seed: 1
-
-
 # hydra configuration
 hydra:
-    # name: ${env}
     job:
-        name: ${env}
+        # name: sac
+        name: ${agent.name}
     run:
-        dir: ./exp/${now:%Y.%m.%d}/${now:%H%M}_${agent.name}_${experiment}
+        dir: ./exp/${now:%Y.%m.%d.%H%M}_${agent.name}_${experiment}
