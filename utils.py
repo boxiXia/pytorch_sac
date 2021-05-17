@@ -9,10 +9,7 @@ from collections import deque
 import random
 import math
 
-import dmc2gym
-
-
-
+# import dmc2gym
 # def makeEnv(cfg):
 #     """Helper function to create dm_control environment"""
 #     if cfg.env == 'ball_in_cup_catch':
