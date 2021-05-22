@@ -4,8 +4,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import copy
-import math
 import os
 import sys
 import time
@@ -15,7 +13,8 @@ sys.path.append(os.path.realpath(os.path.dirname(__file__)))
 from video import VideoRecorder
 from logger import Logger
 from replay_buffer import ReplayBuffer
-import utils
+from utils import setSeedEverywhere, evalMode
+# import utils
 
 import hydra
 
@@ -30,7 +29,7 @@ class Workspace(object):
                              log_frequency=cfg.log_frequency,
                              agent=cfg.agent.name)
 
-        utils.setSeedEverywhere(cfg.seed)
+        setSeedEverywhere(cfg.seed)
         self.device = torch.device(cfg.device)
         # self.env = utils.makeEnv(cfg)
         self.env = hydra.utils.call(cfg.env)
@@ -61,7 +60,7 @@ class Workspace(object):
             done = False
             episode_reward = 0
             while not done:
-                with utils.evalMode(self.agent):
+                with evalMode(self.agent):
                     action = self.agent.act(obs, sample=False)
                 obs, reward, done, _ = self.env.step(action)
                 self.video_recorder.record(self.env)
@@ -77,48 +76,46 @@ class Workspace(object):
     def run(self):
         episode, episode_reward, done = 0, 0, True
         start_time = time.time()
-        while self.step < self.cfg.num_train_steps:
+        num_train_steps = self.cfg.num_train_steps # total training steps
+        num_seed_steps = self.cfg.num_seed_steps # steps prior to training
+        env = self.env
+        while self.step < num_train_steps:
             if done:
                 if self.step > 0:
                     self.logger.log('train/duration',
                                     time.time() - start_time, self.step)
                     start_time = time.time()
-                    self.logger.dump(
-                        self.step, save=(self.step > self.cfg.num_seed_steps))
-
+                    self.logger.dump(self.step, save=(self.step > num_seed_steps))
                 # evaluate agent periodically
                 if self.step > 0 and self.step % self.cfg.eval_frequency == 0:
                     self.logger.log('eval/episode', episode, self.step)
                     self.evaluate()
+                self.logger.log('train/episode_reward', episode_reward,self.step)
+                self.logger.log('train/episode', episode, self.step)
 
-                self.logger.log('train/episode_reward', episode_reward,
-                                self.step)
-
-                obs = self.env.reset()
-                self.agent.reset()
                 done = False
                 episode_reward = 0
                 episode_step = 0
                 episode += 1
-
-                self.logger.log('train/episode', episode, self.step)
+                
+                self.agent.reset()
+                obs = env.reset()
 
             # sample action for data collection
-            if self.step < self.cfg.num_seed_steps:
-                action = self.env.action_space.sample()
+            if self.step < num_seed_steps:
+                action = env.action_space.sample()
             else:
-                with utils.evalMode(self.agent):
+                with evalMode(self.agent):
                     action = self.agent.act(obs, sample=True)
-
             # run training update
-            if self.step >= self.cfg.num_seed_steps:
-                self.agent.update(self.replay_buffer, self.logger, self.step)
+            if self.step >= num_seed_steps:
+                self.agent.update(self.replay_buffer, self.logger, self.step) 
 
-            next_obs, reward, done, _ = self.env.step(action)
+            next_obs, reward, done, _ = env.step(action)
 
             # allow infinite bootstrap
             done = float(done)
-            done_no_max = 0 if episode_step + 1 == self.env._max_episode_steps else done
+            done_no_max = 0 if episode_step + 1 == env._max_episode_steps else done
             episode_reward += reward
 
             self.replay_buffer.add(obs, action, reward, next_obs, done,
@@ -129,7 +126,6 @@ class Workspace(object):
             self.step += 1
 
 
-# @hydra.main(config_path='config/train.yaml', strict=True)
 @hydra.main(config_path="config",config_name='train')
 def main(cfg):
     workspace = Workspace(cfg)

@@ -5,6 +5,9 @@ from torch import nn
 import torch.nn.functional as F
 from torch import distributions as pyd
 
+import sys
+import os
+sys.path.append(os.path.realpath(os.path.dirname(__file__)))
 import utils
 
 
@@ -61,7 +64,12 @@ class DiagGaussianActor(nn.Module):
                  log_std_bounds):
         super().__init__()
 
-        self.log_std_bounds = log_std_bounds
+        # self.log_std_bounds = log_std_bounds
+        log_std_min, log_std_max = log_std_bounds
+        # conversion x:[-1,1]->y:[log_std_min, log_std_max] with y = k*x+b
+        self.k = (log_std_max - log_std_min)/2.
+        self.b = log_std_min + self.k
+        
         self.trunk = utils.mlp(obs_dim, hidden_dim, 2 * action_dim,
                                hidden_depth)
 
@@ -73,8 +81,9 @@ class DiagGaussianActor(nn.Module):
 
         # constrain log_std inside [log_std_min, log_std_max]
         log_std = torch.tanh(log_std)
-        log_std_min, log_std_max = self.log_std_bounds
-        log_std = log_std_min + 0.5 * (log_std_max - log_std_min) * (log_std +1)
+        # log_std_min, log_std_max = self.log_std_bounds
+        # log_std = log_std_min + 0.5 * (log_std_max - log_std_min) * (log_std +1)
+        log_std = self.k*log_std + self.b
 
         std = log_std.exp()
 

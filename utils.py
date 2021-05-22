@@ -114,19 +114,81 @@ class MLP(nn.Module):
     def forward(self, x):
         return self.trunk(x)
 
+####################################################################################################
+# reference: 
+# https://towardsdatascience.com/residual-network-implementing-resnet-a7da63c7b278
+# https://towardsdatascience.com/residual-blocks-building-blocks-of-resnet-fd90ca15d6ec
+
+def activation_func(activation):
+    return nn.ModuleDict([
+        ['relu', nn.ReLU()],
+        ['leaky_relu', nn.LeakyReLU()],
+        ['selu', nn.SELU()],
+        ['none', nn.Identity()]
+    ])[activation]
+
+class ResidualBlock(nn.Module):
+    def __init__(self, in_channels, out_channels):
+        super().__init__()
+        self.in_channels, self.out_channels = in_channels, out_channels
+        self.blocks = nn.Identity()
+        self.shortcut = nn.Identity()
+        self.should_apply_shortcut = (self.in_channels != self.out_channels)
+
+    def forward(self, x):
+        if self.should_apply_shortcut:
+            residual = self.shortcut(x)
+        else:
+            residual = x
+        x = self.blocks(x)
+        x += residual
+        return x
+
+# K. He, X. Zhang, S. Ren, and J. Sun. Identity Mappings in Deep Residual Networks. arXiv preprint arXiv:1603.05027v3,2016.
+class ResidualDenseBlock(ResidualBlock):
+    def __init__(self, in_channels, out_channels,seq_len=None, activation='leaky_relu'):
+        super().__init__(in_channels, out_channels)
+        self.blocks = nn.Sequential(
+            # nn.BatchNorm1d(in_channels if seq_len is None else seq_len),
+            # activation_func(activation),
+            nn.Linear(in_channels, out_channels),
+            # nn.BatchNorm1d(out_channels if seq_len is None else seq_len),
+            activation_func(activation),
+            nn.Linear(out_channels, out_channels),
+            activation_func(activation)
+        )
+        self.shortcut = nn.Linear(in_channels, out_channels)
+##########################################################################################################################
+
+
+
+# def mlp(input_dim, hidden_dim, output_dim, hidden_depth, output_mod=None):
+#     if hidden_depth == 0:
+#         mods = [nn.Linear(input_dim, output_dim)]
+#     else:
+#         mods = [nn.Linear(input_dim, hidden_dim), nn.ReLU(inplace=True)]
+#         for i in range(hidden_depth - 1):
+#             mods += [nn.Linear(hidden_dim, hidden_dim), nn.ReLU(inplace=True)]
+#         mods.append(nn.Linear(hidden_dim, output_dim))
+#     if output_mod is not None:
+#         mods.append(output_mod)
+#     trunk = nn.Sequential(*mods)
+#     return trunk
 
 def mlp(input_dim, hidden_dim, output_dim, hidden_depth, output_mod=None):
     if hidden_depth == 0:
         mods = [nn.Linear(input_dim, output_dim)]
     else:
-        mods = [nn.Linear(input_dim, hidden_dim), nn.ReLU(inplace=True)]
+        mods = [ResidualDenseBlock(input_dim,hidden_dim, activation="leaky_relu")]
         for i in range(hidden_depth - 1):
-            mods += [nn.Linear(hidden_dim, hidden_dim), nn.ReLU(inplace=True)]
+            mods += [ResidualDenseBlock(hidden_dim,hidden_dim, activation="leaky_relu")]
         mods.append(nn.Linear(hidden_dim, output_dim))
     if output_mod is not None:
         mods.append(output_mod)
     trunk = nn.Sequential(*mods)
     return trunk
+
+
 
 def toNumpy(t):
     if t is None:
@@ -134,4 +196,4 @@ def toNumpy(t):
     elif t.nelement() == 0:
         return np.array([])
     else:
-        return t.cpu().detach().numpy()
+        return t.detach().cpu().numpy()

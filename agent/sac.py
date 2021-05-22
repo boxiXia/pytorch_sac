@@ -29,14 +29,12 @@ class SACAgent(Agent):
         self.learnable_temperature = learnable_temperature
 
         self.critic = hydra.utils.instantiate(critic_cfg).to(self.device)
-        self.critic_target = hydra.utils.instantiate(critic_cfg).to(
-            self.device)
+        self.critic_target = hydra.utils.instantiate(critic_cfg).to(self.device)
         self.critic_target.load_state_dict(self.critic.state_dict())
 
         self.actor = hydra.utils.instantiate(actor_cfg).to(self.device)
 
-        self.log_alpha = torch.tensor(np.log(init_temperature)).to(self.device)
-        self.log_alpha.requires_grad = True
+        self.log_alpha = torch.tensor(np.log(init_temperature),device=self.device,requires_grad=True)
         # set target entropy to -|A|
         self.target_entropy = -action_dim
 
@@ -55,7 +53,7 @@ class SACAgent(Agent):
 
         # set training mode
         self.train()
-        self.critic_target.train()
+        # self.critic_target.train()# TODO is this necessary?
 
     def train(self, training=True):
         """set training mode for pytorch.nn.Module"""
@@ -68,13 +66,13 @@ class SACAgent(Agent):
         return self.log_alpha.exp()
 
     def act(self, obs, sample=False):
-        obs = torch.FloatTensor(obs).to(self.device)
-        obs = obs.unsqueeze(0)
+        obs = torch.tensor(obs, dtype=torch.float, device=self.device).unsqueeze(0) 
         dist = self.actor(obs)
         action = dist.sample() if sample else dist.mean
         action = action.clamp(*self.action_range)
-        assert action.ndim == 2 and action.shape[0] == 1 #  TODO:Check this
-        return utils.toNumpy(action[0])
+        # assert action.ndim == 2 and action.shape[0] == 1 #  TODO:Check this
+        # return utils.toNumpy(action[0])
+        return action[0].detach().cpu().numpy()
 
     def updateCritic(self, obs, action, reward, next_obs, not_done, logger,
                       step):
