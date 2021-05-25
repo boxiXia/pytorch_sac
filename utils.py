@@ -62,9 +62,6 @@ class trainMode(object):
             model.train(state)
         return False
 
-class evalMode(trainMode):
-    """ context manager that sets the module in evaluation mode."""
-
 
 def softUpdateParams(net, target_net, tau):
     """target_net = net*tau + target_net*(1-tau)"""
