@@ -26,7 +26,7 @@ class SACAgent(Agent):
         self.actor_update_frequency = actor_update_frequency
         self.critic_target_update_frequency = critic_target_update_frequency
         self.batch_size = batch_size
-        self.learnable_temperature = learnable_temperature
+        self.learnable_temperature = learnable_temperature # bool, whether alpha is learnable
 
         self.critic = hydra.utils.instantiate(critic_cfg).to(self.device)
         self.critic_target = hydra.utils.instantiate(critic_cfg).to(self.device)
@@ -55,6 +55,35 @@ class SACAgent(Agent):
         self.train()
         # self.critic_target.train()# TODO is this necessary?
 
+        # step for deciding wether to update
+        self.actor_update_step = 0 
+        self.critic_target_update_step = 0
+        
+        
+    def save(self,path):
+        """save model checkpoint"""
+        torch.save({
+            "log_alpha":self.log_alpha,
+            "critic":self.critic.state_dict(),
+            "critic_target":self.critic_target.state_dict(),
+            "actor":self.actor.state_dict(),
+            "actor_optimizer":self.actor_optimizer.state_dict(),
+            "critic_optimizer":self.critic_optimizer.state_dict(),
+            "log_alpha_optimizer":self.log_alpha_optimizer.state_dict()
+        },path)
+        
+    def load(self,path):
+        """load saved model"""
+        chpt  = torch.load(path,map_location=self.device) # loaded checkpoint
+        self.log_alpha = chpt["log_alpha"]
+        self.critic.load_state_dict(chpt["critic"])
+        self.critic_target.load_state_dict(chpt["critic_target"])
+        self.actor.load_state_dict(chpt["actor"])
+        self.actor_optimizer.load_state_dict(chpt["actor_optimizer"])
+        self.critic_optimizer.load_state_dict(chpt["critic_optimizer"])
+        self.log_alpha_optimizer.load_state_dict(chpt["log_alpha_optimizer"])
+        
+        
     def train(self, training=True):
         """set training mode for pytorch.nn.Module"""
         self.training = training
@@ -78,7 +107,7 @@ class SACAgent(Agent):
                       step):
         dist = self.actor(next_obs)
         next_action = dist.rsample()
-        log_prob = dist.log_prob(next_action).sum(-1, keepdim=True)
+        log_prob = dist.log_prob(next_action).sum(-1, keepdim=True) # sum log_prob -> multiply prob
         target_Q1, target_Q2 = self.critic_target(next_obs, next_action)
         target_V = torch.min(target_Q1,
                              target_Q2) - self.alpha.detach() * log_prob
@@ -96,7 +125,7 @@ class SACAgent(Agent):
         critic_loss.backward()
         self.critic_optimizer.step()
 
-        self.critic.log(logger, step)
+        self.critic.log(logger, step) # TODO
 
     def updateActorAndAlpha(self, obs, logger, step):
         dist = self.actor(obs)
@@ -116,7 +145,7 @@ class SACAgent(Agent):
         actor_loss.backward()
         self.actor_optimizer.step()
 
-        self.actor.log(logger, step)
+        self.actor.log(logger, step) #TODO
 
         if self.learnable_temperature:
             self.log_alpha_optimizer.zero_grad()
@@ -136,9 +165,14 @@ class SACAgent(Agent):
         self.updateCritic(obs, action, reward, next_obs, not_done_no_max,
                            logger, step)
 
-        if step % self.actor_update_frequency == 0:
+        # if step % self.actor_update_frequency == 0:
+        if self.actor_update_step % self.actor_update_frequency == 0:            
             self.updateActorAndAlpha(obs, logger, step)
 
-        if step % self.critic_target_update_frequency == 0:
-            utils.softUpdateParams(self.critic, self.critic_target,
-                                     self.critic_tau)
+        # if step % self.critic_target_update_frequency == 0:
+        if self.critic_target_update_step % self.critic_target_update_frequency == 0:
+            utils.softUpdateParams(self.critic, self.critic_target,self.critic_tau)
+
+        # counter ++
+        self.actor_update_step+=1
+        self.critic_target_update_step+=1

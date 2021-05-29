@@ -52,7 +52,7 @@ class MetersGroup(object):
         self._csv_file_name = self._prepare_file(file_name, 'csv')
         self._formating = formating
         self._meters = defaultdict(AverageMeter)
-        self._csv_file = open(self._csv_file_name, 'w')
+        self._csv_file = open(self._csv_file_name, 'w',newline="")
         self._csv_writer = None
 
     def _prepare_file(self, prefix, suffix):
