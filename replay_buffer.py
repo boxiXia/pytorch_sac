@@ -21,6 +21,7 @@ class ReplayBuffer(object):
         self.idx = 0
         self.last_save = 0
         self.full = False
+        self.num_recent = -1 # int, most recent samples for updating
 
     def __len__(self):
         return self.capacity if self.full else self.idx
@@ -37,9 +38,17 @@ class ReplayBuffer(object):
         self.full = self.full or self.idx == 0
 
     def sample(self, batch_size):
-        idxs = np.random.randint(0,
-                                 self.capacity if self.full else self.idx,
-                                 size=batch_size)
+        """
+        sample batch_size samples from the most recent num_recent samples
+        """
+        idx_end = self.idx
+        if self.num_recent>batch_size:
+            idx_begin = self.idx - self.num_recent
+        else:
+            idx_begin = self.idx - self.capacity
+        if ~self.full:
+            idx_begin = max(idx_begin,0)
+        idxs = np.random.randint(idx_begin,idx_end,size=batch_size)
 
         obses = torch.as_tensor(self.obses[idxs], device=self.device).float()
         actions = torch.as_tensor(self.actions[idxs], device=self.device)
