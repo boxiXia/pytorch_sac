@@ -60,7 +60,7 @@ class SquashedNormal(pyd.transformed_distribution.TransformedDistribution):
 
 class DiagGaussianActor(nn.Module):
     """torch.distributions implementation of an diagonal Gaussian policy."""
-    def __init__(self, obs_dim, action_dim, hidden_dim, hidden_depth,
+    def __init__(self, obs_dim, action_dim, hidden_channels,
                  log_std_bounds):
         super().__init__()
 
@@ -70,8 +70,7 @@ class DiagGaussianActor(nn.Module):
         self.k = (log_std_max - log_std_min)/2.
         self.b = log_std_min + self.k
         
-        self.trunk = utils.mlp(obs_dim, hidden_dim, 2 * action_dim,
-                               hidden_depth)
+        self.trunk = utils.mlp(obs_dim, hidden_channels, 2 * action_dim)
 
         self.outputs = dict()
         self.apply(utils.weight_init)

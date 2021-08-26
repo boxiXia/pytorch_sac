@@ -11,15 +11,17 @@ critic_cfg: # double_q_critic
   # params:
   obs_dim: ${agent.obs_dim}
   action_dim: ${agent.action_dim}
-  hidden_dim: 1024
-  hidden_depth: 2
+  hidden_channels: [1024,1024]
+  # hidden_dim: 1024
+  # hidden_depth: 2
 actor_cfg: # diag_gaussian_actor
   _target_: agent.actor.DiagGaussianActor
   # params:
   obs_dim: ${agent.obs_dim}
   action_dim: ${agent.action_dim}
-  hidden_depth: 2
-  hidden_dim: 1024
+  hidden_channels: [1024,1024]
+  # hidden_depth: 2
+  # hidden_dim: 1024
   log_std_bounds: [-5, 2]
 discount: 0.99
 init_temperature: 0.1

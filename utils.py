@@ -172,18 +172,33 @@ class ResidualDenseBlock(ResidualBlock):
 #     trunk = nn.Sequential(*mods)
 #     return trunk
 
-def mlp(input_dim, hidden_dim, output_dim, hidden_depth, output_mod=None):
+# def mlp(input_dim, hidden_dim, output_dim, hidden_depth, output_mod=None):
+#     if hidden_depth == 0:
+#         mods = [nn.Linear(input_dim, output_dim)]
+#     else:
+#         mods = [ResidualDenseBlock(input_dim,hidden_dim, activation="leaky_relu")]
+#         for i in range(hidden_depth - 1):
+#             mods += [ResidualDenseBlock(hidden_dim,hidden_dim, activation="leaky_relu")]
+#         mods.append(nn.Linear(hidden_dim, output_dim))
+#     if output_mod is not None:
+#         mods.append(output_mod)
+#     trunk = nn.Sequential(*mods)
+#     return trunk
+
+def mlp(input_dim, hidden_channels, output_dim, output_mod=None):
+    hidden_depth = len(hidden_channels)
     if hidden_depth == 0:
         mods = [nn.Linear(input_dim, output_dim)]
     else:
-        mods = [ResidualDenseBlock(input_dim,hidden_dim, activation="leaky_relu")]
+        mods = [ResidualDenseBlock(input_dim,hidden_channels[0], activation="leaky_relu")]
         for i in range(hidden_depth - 1):
-            mods += [ResidualDenseBlock(hidden_dim,hidden_dim, activation="leaky_relu")]
-        mods.append(nn.Linear(hidden_dim, output_dim))
+            mods += [ResidualDenseBlock(hidden_channels[i],hidden_channels[i+1], activation="leaky_relu")]
+        mods.append(nn.Linear(hidden_channels[-1], output_dim))
     if output_mod is not None:
         mods.append(output_mod)
     trunk = nn.Sequential(*mods)
     return trunk
+
 
 
 

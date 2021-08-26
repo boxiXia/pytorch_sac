@@ -87,11 +87,11 @@ class MetersGroup(object):
     def _format(self, key, value, ty):
         if ty == 'int':
             value = int(value)
-            return f'{key}: {value}'
+            return f'{key} {value}'
         elif ty == 'float':
-            return f'{key}: {value:.04f}'
+            return f'{key} {value:.04f}'
         elif ty == 'time':
-            return f'{key}: {value:04.1f} s'
+            return f'{key} {value:04.1f} s'
         else:
             raise f'invalid format type: {ty}'
 
