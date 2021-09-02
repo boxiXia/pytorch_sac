@@ -48,6 +48,7 @@ class ReplayBuffer(object):
     def sample(s, batch_size):
         """
         sample batch_size samples from the most recent num_recent samples
+        return obses, actions, rewards, next_obses, not_dones, not_dones_no_max
         """
         idx_end = s.idx
         if s.num_recent > batch_size:
@@ -62,11 +63,9 @@ class ReplayBuffer(object):
         obses = torch.as_tensor(s.obses[idxs], device=s.device).float()
         actions = torch.as_tensor(s.actions[idxs], device=s.device)
         rewards = torch.as_tensor(s.rewards[idxs], device=s.device)
-        next_obses = torch.as_tensor(s.next_obses[idxs],
-                                     device=s.device).float()
+        next_obses = torch.as_tensor(s.next_obses[idxs], device=s.device).float()
         not_dones = torch.as_tensor(s.not_dones[idxs], device=s.device)
-        not_dones_no_max = torch.as_tensor(s.not_dones_no_max[idxs],
-                                           device=s.device)
+        not_dones_no_max = torch.as_tensor(s.not_dones_no_max[idxs], device=s.device)
 
         return obses, actions, rewards, next_obses, not_dones, not_dones_no_max
 
