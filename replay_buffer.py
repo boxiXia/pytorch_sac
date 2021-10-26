@@ -76,7 +76,7 @@ class RecordArray:
 #         idx_bins = idx//s.chunk_capacity
         try:
             idx_bins = idx//s.chunk_capacity
-        except:
+        except: # idx may be array
             idx = np.asarray(idx)
             idx_bins = idx//s.chunk_capacity
         # idx_bins = np.floor_divide(idx,s.chunk_capacity)
@@ -172,15 +172,17 @@ class ReplayBuffer(object):
     def __len__(s):
         return s.capacity if s.full else s.idx
 
-    def add(s, obs, action, reward, next_obs, done, done_no_max):
+    # def add(s, obs, action, reward, next_obs, done, done_no_max):
+    def add(s, obs, action, reward, next_obs, not_done, not_done_no_max):
         """ add one sample """
         s.obses[s.idx] = obs
         s.actions[s.idx] = action
         s.rewards[s.idx] = reward
         s.next_obses[s.idx] = next_obs
-        s.not_dones[s.idx] = not done
-        s.not_dones_no_max[s.idx] = not done_no_max
-
+        # s.not_dones[s.idx] = not done
+        # s.not_dones_no_max[s.idx] = not done_no_max
+        s.not_dones[s.idx] = not_done
+        s.not_dones_no_max[s.idx] = not_done_no_max
         s.idx = (s.idx + 1) % s.capacity
         s.full = s.full or s.idx == 0
 

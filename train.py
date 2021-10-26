@@ -114,13 +114,16 @@ class Workspace(object):
             next_obs, reward, done, _ = env.step(action)
 
             # allow infinite bootstrap
-            done = float(done)
-            done_no_max = 0 if episode_step + 1 == env._max_episode_steps else done
+            not_done = float(not done)
+            not_done_no_max = 1.0 if episode_step + 1 == env._max_episode_steps else not_done
+            # done = float(done)
+            # done_no_max = 0 if episode_step + 1 == env._max_episode_steps else done
+            
             episode_reward += reward
 
-            self.replay_buffer.add(obs, action, reward, next_obs, done,
-                                   done_no_max)
-
+            # self.replay_buffer.add(obs, action, reward, next_obs, done, done_no_max)
+            self.replay_buffer.add(obs, action, reward, next_obs, not_done, not_done_no_max)
+            
             obs = next_obs
             episode_step += 1
             self.step += 1
