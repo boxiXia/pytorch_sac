@@ -2,12 +2,9 @@
 # to run: python train.py env=cheetah_run
 import numpy as np
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 import os
 import sys
 import time
-import pickle as pkl
 
 sys.path.append(os.path.realpath(os.path.dirname(__file__)))
 from video import VideoRecorder
@@ -40,12 +37,18 @@ class Workspace(object):
             float(self.env.action_space.low.min()),
             float(self.env.action_space.high.max())
         ]
+        cfg.agent.n_step = cfg.replay_buffer.n_step # n-step experience replay
         self.agent = hydra.utils.instantiate(cfg.agent,_recursive_=False)
 
-        self.replay_buffer = ReplayBuffer(self.env.observation_space.shape,
-                                          self.env.action_space.shape,
-                                          int(cfg.replay_buffer_capacity),
-                                          self.device)
+        self.replay_buffer = ReplayBuffer(
+            capacity=cfg.replay_buffer.capacity,
+            obs_shape = self.env.observation_space.shape,
+            action_shape = self.env.action_space.shape,
+            obs_dtype = self.env.observation_space.dtype,
+            action_dtype = self.env.action_space.dtype,
+            n_step = cfg.replay_buffer.n_step, # n-step experience replay
+            discount=cfg.agent.discount, # per step discount
+            device = self.device)
 
         self.video_recorder = VideoRecorder(
             self.work_dir if cfg.save_video else None)
@@ -100,6 +103,7 @@ class Workspace(object):
                 
                 self.agent.reset()
                 obs = env.reset()
+                self.replay_buffer.onEpisodeEnd()
 
             # sample action for data collection
             if self.step < num_seed_steps:
@@ -113,20 +117,15 @@ class Workspace(object):
 
             next_obs, reward, done, _ = env.step(action)
 
-            # allow infinite bootstrap
-            not_done = float(not done)
-            not_done_no_max = 1.0 if episode_step + 1 == env._max_episode_steps else not_done
-            # done = float(done)
-            # done_no_max = 0 if episode_step + 1 == env._max_episode_steps else done
-            
-            episode_reward += reward
-
-            # self.replay_buffer.add(obs, action, reward, next_obs, done, done_no_max)
-            self.replay_buffer.add(obs, action, reward, next_obs, not_done, not_done_no_max)
+            max_episode_step_reached = (episode_step + 1 == env._max_episode_steps)
+            not_done = True if max_episode_step_reached else (not done) # allow infinite bootstrap
+            done = done or max_episode_step_reached # signals episode ended
+            self.replay_buffer.add(obs, action, reward, next_obs, not_done)
             
             obs = next_obs
             episode_step += 1
             self.step += 1
+            episode_reward += reward
 
 
 @hydra.main(config_path="config",config_name='train')

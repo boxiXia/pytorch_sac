@@ -13,7 +13,7 @@ import hydra
 class SACAgent(Agent):
     """SAC algorithm."""
     def __init__(self, obs_dim, action_dim, action_range, device, critic_cfg,
-                 actor_cfg, discount, init_temperature, alpha_lr, alpha_betas,
+                 actor_cfg, discount,n_step, init_temperature, alpha_lr, alpha_betas,
                  actor_lr, actor_betas, actor_update_frequency, critic_lr,
                  critic_betas, critic_tau, critic_target_update_frequency,
                  batch_size, learnable_temperature,name="sac"):
@@ -21,7 +21,10 @@ class SACAgent(Agent):
 
         self.action_range = action_range
         self.device = torch.device(device)
-        self.discount = discount
+        # self.discount = discount
+        self.discount = discount**n_step
+        # self.n_step = n_step # n_step experience replay
+        # self.n_discount = discount**n_step
         self.critic_tau = critic_tau # soft update: target_net = target_net*(1-tau) + net*tau
         self.actor_update_frequency = actor_update_frequency
         self.critic_target_update_frequency = critic_target_update_frequency
@@ -157,12 +160,12 @@ class SACAgent(Agent):
             self.log_alpha_optimizer.step()
 
     def update(self, replay_buffer, logger, step):
-        obs, action, reward, next_obs, not_done, not_done_no_max = replay_buffer.sample(
+        obs, action, reward, next_obs, not_done = replay_buffer.sample(
             self.batch_size)
 
         logger.log('train/batch_reward', reward.mean(), step)
 
-        self.updateCritic(obs, action, reward, next_obs, not_done_no_max,
+        self.updateCritic(obs, action, reward, next_obs, not_done,
                            logger, step)
 
         # if step % self.actor_update_frequency == 0:

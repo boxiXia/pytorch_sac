@@ -24,6 +24,7 @@ actor_cfg: # diag_gaussian_actor
   # hidden_dim: 1024
   log_std_bounds: [-5, 2]
 discount: 0.99
+n_step: 1 # n_step experience replay
 init_temperature: 0.1
 alpha_lr: 1e-4
 alpha_betas: [0.9, 0.999]

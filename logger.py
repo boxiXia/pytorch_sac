@@ -107,10 +107,13 @@ class MetersGroup(object):
         if len(self._meters) == 0:
             return
         if save:
-            data = self._prime_meters()
-            data['step'] = step
-            self._dump_to_csv(data)
-            self._dump_to_console(data, prefix)
+            try:
+                data = self._prime_meters()
+                data['step'] = step
+                self._dump_to_csv(data)
+                self._dump_to_console(data, prefix)
+            except ValueError:
+                pass
         self._meters.clear()
 
 

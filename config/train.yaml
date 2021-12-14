@@ -1,5 +1,6 @@
 defaults:
     - agent: sac
+    - _self_
 
 seed: 1
 
@@ -15,7 +16,10 @@ env:
 experiment: test_exp
 
 num_train_steps: 1e6
-replay_buffer_capacity: ${num_train_steps}
+
+replay_buffer:
+    capacity: ${num_train_steps}
+    n_step: 1
 
 num_seed_steps: 5000
 

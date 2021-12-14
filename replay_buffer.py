@@ -140,6 +140,60 @@ class RecordArray:
             return np.fromfile(fh, dtype=dtype).reshape(shape)
 
 
+class nStepBuffer:
+    """
+    helper class for the n-step replay buffer
+    ref:
+        https://github.com/ku2482/rltorch/blob/master/rltorch/memory/multi_step.py
+        https://ymd_h.gitlab.io/cpprb/features/nstep/
+    """
+    def __init__(s, # self
+                  obs_shape: tuple,  # observation shape
+                  action_shape: tuple,  # action shape
+                  obs_dtype: type,  # observation dtype
+                  action_dtype: type,  # action dtype
+                  n_step:int, # n step experience replay
+                  discount: float, # discount factor (gamma) for n step reward
+                  ):
+        s.capacity = capacity = n_step
+        discounts = np.power(discount,np.arange(capacity),dtype=np.float32)
+        # s.discounts = 
+        # [[1,g,g**2,g**3,...,g**(n-1)],
+        #  [g**(n-1),1,g,g**2,g**3,...],
+        #  [g**(n-2),g**(n-1),1,g,g**2,g**3,...],
+        #  ...], where g=discount (gamma), n = n_step
+        s.discounts = [np.roll(discounts,k) for k in range(capacity)]
+        s.clear()
+        
+        def _makeArray(capacity,shape,dtype):
+            try:len(shape)
+            except: shape = (shape,)# zero-length
+            return np.zeros((capacity, *shape), dtype=dtype) # actual data initialized with zero
+        s.obses =      _makeArray(capacity,obs_shape,obs_dtype)
+        s.actions =    _makeArray(capacity,action_shape,action_dtype)
+        s.rewards =    _makeArray(capacity,(1,),np.float32)
+        
+    def add(s, obs, action, reward):
+        """ add one sample """
+        s.obses[s.idx] = obs
+        s.actions[s.idx] = action
+        s.rewards[s.idx] = reward
+        s.idx = (s.idx + 1) % s.capacity
+        s.full = s.full or s.idx == 0
+        
+    def get(s):
+        """returns obs,action,reward
+           where the reward is the n-step reward
+        """
+        assert s.full
+        reward = s.discounts[s.idx]@s.rewards
+        return  s.obses[s.idx],s.actions[s.idx],reward
+        
+    def clear(s):
+        """clear the buffer"""
+        s.idx = 0
+        s.full = False
+    
 
 class ReplayBuffer(object):
     """Buffer to store environment transitions."""
@@ -150,6 +204,8 @@ class ReplayBuffer(object):
                  action_shape: tuple,  # action shape
                  obs_dtype: type = np.float32,  # observation dtype
                  action_dtype: type = np.float32,  # action dtype
+                 n_step: int = 1, # n step experience replay
+                 discount: float = 1, # discount factor (gamma) for n step reward
                  device="cpu",  # cpu, cuda, cuda:0, etc.
                  chunk_bytes = 2e7 # num bytes per chunk
                  ):
@@ -167,29 +223,48 @@ class ReplayBuffer(object):
         s.actions =    RecordArray(capacity,action_shape,action_dtype,chunk_bytes)
         s.rewards =    RecordArray(capacity,(1,),np.float32,chunk_bytes)
         s.not_dones =  RecordArray(capacity,(1,),np.float32,chunk_bytes)
-        s.not_dones_no_max = RecordArray(capacity,(1,),np.float32,chunk_bytes)
+        # for computing mult-step reward
+        if n_step!=1:
+            s.n_step_buf = nStepBuffer(
+                obs_shape = obs_shape,action_shape=action_shape,
+                obs_dtype=obs_dtype, action_dtype=action_dtype, 
+                n_step=n_step, discount=discount)
+            s.is_multi_step = True
+        else:
+            s.is_multi_step = False
 
     def __len__(s):
         return s.capacity if s.full else s.idx
 
-    # def add(s, obs, action, reward, next_obs, done, done_no_max):
-    def add(s, obs, action, reward, next_obs, not_done, not_done_no_max):
-        """ add one sample """
+    def _add(s, obs, action, reward, next_obs, not_done):
         s.obses[s.idx] = obs
         s.actions[s.idx] = action
         s.rewards[s.idx] = reward
         s.next_obses[s.idx] = next_obs
-        # s.not_dones[s.idx] = not done
-        # s.not_dones_no_max[s.idx] = not done_no_max
         s.not_dones[s.idx] = not_done
-        s.not_dones_no_max[s.idx] = not_done_no_max
         s.idx = (s.idx + 1) % s.capacity
         s.full = s.full or s.idx == 0
+        
+        
+    def add(s, obs, action, reward, next_obs, not_done):
+        """ add one sample """
+        if s.is_multi_step:
+            s.n_step_buf.add(obs,action,reward)
+            if s.n_step_buf.full:
+                obs,action,reward = s.n_step_buf.get()
+                s._add(obs, action, reward, next_obs, not_done)
+        else:
+             s._add(obs, action, reward, next_obs, not_done)
+    
+    def onEpisodeEnd(s):
+        """must be called when an episode finished"""
+        if s.is_multi_step:
+            s.n_step_buf.clear()
 
     def sample(s, batch_size):
         """
         sample batch_size samples from the most recent num_recent samples
-        return obses, actions, rewards, next_obses, not_dones, not_dones_no_max
+        return obses, actions, rewards, next_obses, not_dones, episode_done
         """
         idx_end = s.idx
         if s.num_recent > batch_size:
@@ -207,15 +282,13 @@ class ReplayBuffer(object):
         rewards = torch.as_tensor(s.rewards[idxs], device=s.device)
         next_obses = torch.as_tensor(s.next_obses[idxs], device=s.device)
         not_dones = torch.as_tensor(s.not_dones[idxs], device=s.device)
-        not_dones_no_max = torch.as_tensor(s.not_dones_no_max[idxs], device=s.device)
-        return obses, actions, rewards, next_obses, not_dones, not_dones_no_max
+        return obses, actions, rewards, next_obses, not_dones
 
     def __sizeof__(s):
         """to estimate the size in memory in bytes"""
         return super().__sizeof__()+s.obses.__sizeof__() +\
             s.next_obses.__sizeof__()+s.actions.__sizeof__() +\
-            s.rewards.__sizeof__()+s.not_dones.__sizeof__() + \
-            s.not_dones_no_max.__sizeof__()
+            s.rewards.__sizeof__()+s.not_dones.__sizeof__()
 
     def save(s,dir_path):
         """ save replay buffer to directory path dir_path"""
@@ -228,7 +301,6 @@ class ReplayBuffer(object):
         s.actions.save(os.path.join(dir_path,"actions"))
         s.rewards.save(os.path.join(dir_path,"rewards"))
         s.not_dones.save(os.path.join(dir_path,"not_dones"))
-        s.not_dones_no_max.save(os.path.join(dir_path,"not_dones_no_max"))
         with open(os.path.join(dir_path,"header.msgpack"), 'wb') as file:
             msgpack.pack((s.capacity,s.idx,s.full), file)
 
@@ -240,6 +312,5 @@ class ReplayBuffer(object):
         s.actions.load(os.path.join(dir_path,"actions"))
         s.rewards.load(os.path.join(dir_path,"rewards"))
         s.not_dones.load(os.path.join(dir_path,"not_dones"))
-        s.not_dones_no_max.load(os.path.join(dir_path,"not_dones_no_max"))
         with open(os.path.join(dir_path,"header.msgpack"), 'rb') as file:
             s.capacity,s.idx,s.full = msgpack.unpack(file)
