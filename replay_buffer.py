@@ -268,7 +268,7 @@ class ReplayBuffer(object):
         """
         idx_end = s.idx
         if s.num_recent > batch_size:
-            idx_begin = s.idx - s.num_recent
+            idx_begin = s.idx - min(s.num_recent,s.capacity)
             s.num_recent = -1  # reset num_recent
         else:
             idx_begin = s.idx - s.capacity

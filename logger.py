@@ -112,8 +112,8 @@ class MetersGroup(object):
                 data['step'] = step
                 self._dump_to_csv(data)
                 self._dump_to_console(data, prefix)
-            except ValueError:
-                pass
+            except ValueError as e:
+                print(e)
         self._meters.clear()
 
 
