@@ -85,7 +85,8 @@ class SACAgent(Agent):
         self.actor_optimizer.load_state_dict(chpt["actor_optimizer"])
         self.critic_optimizer.load_state_dict(chpt["critic_optimizer"])
         self.log_alpha_optimizer.load_state_dict(chpt["log_alpha_optimizer"])
-        
+        # print("\n\nactor:\n",self.actor)
+        # print("\n\ncritic:\n",self.critic)
         
     def train(self, training=True):
         """set training mode for pytorch.nn.Module"""

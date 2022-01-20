@@ -120,6 +120,7 @@ def activation_func(activation):
     return nn.ModuleDict([
         ['relu', nn.ReLU()],
         ['leaky_relu', nn.LeakyReLU()],
+        ['silu',nn.SiLU()],
         ['selu', nn.SELU()],
         ['none', nn.Identity()]
     ])[activation]
@@ -143,7 +144,7 @@ class ResidualBlock(nn.Module):
 
 # K. He, X. Zhang, S. Ren, and J. Sun. Identity Mappings in Deep Residual Networks. arXiv preprint arXiv:1603.05027v3,2016.
 class ResidualDenseBlock(ResidualBlock):
-    def __init__(self, in_channels, out_channels,seq_len=None, activation='leaky_relu'):
+    def __init__(self, in_channels, out_channels,seq_len=None, activation='silu'):
         super().__init__(in_channels, out_channels)
         self.blocks = nn.Sequential(
             # nn.BatchNorm1d(in_channels if seq_len is None else seq_len),
@@ -163,9 +164,9 @@ def mlp(input_dim, hidden_channels, output_dim, output_mod=None):
     if hidden_depth == 0:
         mods = [nn.Linear(input_dim, output_dim)]
     else:
-        mods = [ResidualDenseBlock(input_dim,hidden_channels[0], activation="leaky_relu")]
+        mods = [ResidualDenseBlock(input_dim,hidden_channels[0], activation="silu")]
         for i in range(hidden_depth - 1):
-            mods += [ResidualDenseBlock(hidden_channels[i],hidden_channels[i+1], activation="leaky_relu")]
+            mods += [ResidualDenseBlock(hidden_channels[i],hidden_channels[i+1], activation="silu")]
         mods.append(nn.Linear(hidden_channels[-1], output_dim))
     if output_mod is not None:
         mods.append(output_mod)
